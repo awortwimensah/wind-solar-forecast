@@ -1,0 +1,34 @@
+{
+  "site": {
+    "name": "Demo site - Accra",
+    "latitude": 5.6037,
+    "longitude": -0.1870,
+    "timezone": "Africa/Accra"
+  },
+  "forecast_days": 7,
+
+  "deterministic_models": ["ecmwf_ifs025", "gfs_seamless", "icon_seamless", "meteofrance_seamless"],
+  "ensemble_models": ["ecmwf_ifs025", "gfs025", "icon_seamless"],
+
+  "wind": {
+    "n_turbines": 10,
+    "hub_height_m": 120,
+    "power_curve_csv": "backend/power_curve.csv",
+    "windpowerlib_turbine_type": null,
+    "windpowerlib_efficiency_curve": null,
+    "other_losses_pct": 5,
+    "default_shear_alpha": 0.143
+  },
+
+  "solar": {
+    "dc_capacity_kwp": 5000,
+    "ac_capacity_kw": 4300,
+    "tilt_deg": 10,
+    "azimuth_deg": 180,
+    "albedo": 0.2,
+    "gamma_pdc_pct_per_c": -0.35,
+    "faiman_u0": 25.0,
+    "faiman_u1": 6.84,
+    "losses_pct": 12
+  }
+}
