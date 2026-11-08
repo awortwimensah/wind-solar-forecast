@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+# Plant measurements are usually confidential - keep them out of a PUBLIC repo.
+# Train locally and commit only models/ (remove this line if your repo is private).
+data/measurements.csv
