@@ -31,8 +31,9 @@ docs/data/forecast.json  →  docs/index.html (dashboard)
 | `backend/train.py` | Fits bias correction and ML models from your measurements |
 | `backend/physics.py` | Wind and PV conversion models (uses pvlib and windpowerlib when installed) |
 | `backend/openmeteo.py` | API client for the forecast, ensemble and historical-forecast APIs |
-| `docs/index.html` | Dashboard |
-| `docs/live.html` | Browser-only calculator for any site (no backend needed) |
+| `docs/index.html` | **WindSolar Studio**: browser app for any site (GPS/map/search, any dates), with tabs for forecast, trading, storage, evaluation and site assessment |
+| `docs/plant.html` | Dashboard for your configured plant, fed by the hourly GitHub Action |
+| `docs/assets/` | App styles and JavaScript modules (physics, APIs, one file per tab) |
 | `.github/workflows/forecast.yml` | Runs the forecast every hour |
 | `.github/workflows/train.yml` | Retraining: run it manually, and it also runs monthly |
 
@@ -53,6 +54,21 @@ pip install -r backend/requirements.txt
 python backend/forecast.py              # writes docs/data/forecast.json
 python -m http.server -d docs 8000      # open http://localhost:8000
 ```
+
+## WindSolar Studio (docs/index.html)
+Runs entirely in the browser. No backend is needed, so it works on GitHub Pages as it is.
+
+| Tab | What it does | Course topic |
+|---|---|---|
+| Forecast | 4 NWP models + ECMWF/GFS/ICON ensembles → wind and PV power, P10/P50/P90, daily energy, CSV export | Regression, quantile forecasting |
+| Day-ahead trading | Offers the τ* = (λD−λ↓)/(λ↑−λ↓) quantile, compares the expected revenue of different strategies, plots the E[R(q)] curve | Electricity markets, newsvendor problem |
+| Battery storage | Backward-induction DP schedule using day-ahead prices (grid or own-plant charging); the lecture's Markov-price MDP solved by value and policy iteration | MDPs, value/policy iteration |
+| Evaluate & learn | Upload measurements → MAE/RMSE/bias/pinball → ridge regression (degree and λ chosen by blocked CV) → decision-focused learning | Regression, regularisation, validation, DFL |
+| Site assessment | One year of ERA5 → capacity factors → k-means representative days with weights, elbow plot, duration-curve check | Clustering for expansion planning |
+
+Free data sources: Open-Meteo (forecasts, archived forecasts, ensembles, ERA5), Energinet Energi Data Service (DK1/DK2/DE/NO/SE day-ahead prices),
+BigDataCloud (reverse geocoding of the GPS position) and OpenStreetMap tiles. The GPS button uses the browser's geolocation, which requires the
+https site (GitHub Pages provides it).
 
 ## 1. Real power curve
 Choose one of these:
