@@ -116,6 +116,9 @@
 <main class="main">
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="forecast" class="tab active">Forecast</button>
+    <button role="tab" data-tab="combine" class="tab">Combination</button>
+    <button role="tab" data-tab="warnings" class="tab">Warnings <span id="wnBadge" class="tabbadge"></span></button>
+    <button role="tab" data-tab="curtail" class="tab">Availability</button>
     <button role="tab" data-tab="trading" class="tab">Day-ahead trading</button>
     <button role="tab" data-tab="storage" class="tab">Battery storage</button>
     <button role="tab" data-tab="evaluate" class="tab">Evaluate &amp; learn</button>
@@ -140,6 +143,94 @@
     </div>
   </section>
 
+
+  <!-- ---------- COMBINATION ---------- -->
+  <section id="tab-combine" class="tabpane">
+    <div class="card intro">
+      <h2>Combination forecast</h2>
+      <p>Weather models are good in different situations. The weight of each model is learned from its past error <b>separately for each weather situation</b>
+        (wind: low wind / power-curve slope / high wind; solar: clear / broken / overcast) using inverse-MSE weighting, and the spread of past errors in that situation gives
+        a <b>situation-dependent uncertainty band</b>. The latest measurement then corrects the first hours, with the error decaying as e<sup>−Δt/τ</sup>.</p>
+      <div class="controls">
+        <label>Asset<select id="cbAsset"><option value="wind">Wind farm</option><option value="solar">Solar plant</option></select></label>
+        <label>Learn weights against<select id="cbRef"><option value="era5">ERA5 reanalysis (no data needed)</option><option value="meas">My measurements (Evaluate tab)</option></select></label>
+        <button id="cbTrain" class="btn primary">Learn weights</button>
+        <button id="cbApply" class="btn ghost">Re-apply</button>
+      </div>
+      <div id="cbStatus" class="status"></div>
+    </div>
+    <div class="card"><div class="card-h"><h2>Combination forecast</h2><span class="sub" id="cbRegimes">MW</span></div><div class="chart"><canvas id="cCombo"></canvas></div></div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Learned weights per weather situation</h2></div><div class="tablewrap"><table id="cbWeights"></table></div>
+        <p class="sub">With the ERA5 reference the weights show which model agrees best with the reanalysis at this site; with your measurements they reflect real plant skill.</p></div>
+      <div class="card"><div class="card-h"><h2>Test-period skill</h2><span class="sub">last 30 % of the training window</span></div><div class="tablewrap"><table id="cbSkill"></table></div></div>
+    </div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Manual weights</h2><label class="check" style="margin-left:auto"><input type="checkbox" id="cbUseManual"> Use manual weights</label></div>
+        <div id="cbManual" class="sliders"></div></div>
+      <div class="card"><div class="card-h"><h2>Short-term correction</h2><span class="sub">latest measured output</span></div>
+        <div class="grid-controls controls">
+          <label>Measured power (MW)<input id="cbMeasVal" type="number" step="0.1" placeholder="leave empty = none"></label>
+          <label>At (site time)<input id="cbMeasTime" type="datetime-local"></label>
+          <label>Decay time τ (h)<input id="cbTau" type="number" step="0.5" value="4"></label>
+        </div>
+        <p class="sub">If measurements are loaded and overlap the period, the most recent one is used automatically.</p></div>
+    </div>
+  </section>
+
+  <!-- ---------- WARNINGS ---------- -->
+  <section id="tab-warnings" class="tabpane">
+    <div class="card intro">
+      <h2>Weather warnings for operation and trading</h2>
+      <p>Each hour is checked in every weather model (and, for storms, every ensemble member). The share of scenarios that meet a rule sets the level:
+        <span class="badge lv-warning">! Watch ≥ 15 %</span> <span class="badge lv-serious">!! Warning ≥ 40 %</span> <span class="badge lv-critical">⛔ Severe ≥ 70 %</span>.
+        Updates automatically with every forecast.</p>
+    </div>
+    <div class="kpis" id="wnKpis"></div>
+    <div class="card"><div class="card-h"><h2>Risk timeline</h2><span class="sub">hover a cell for details</span></div><div id="wnTimeline" class="tlwrap"><p class="sub">Run a forecast first.</p></div></div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Active warnings</h2></div><div id="wnEvents" class="alerts"></div></div>
+      <div class="card"><div class="card-h"><h2>Situational report</h2><button id="wnCopy" class="btn ghost sm">Copy</button></div>
+        <textarea id="wnReport" rows="14" readonly></textarea></div>
+    </div>
+  </section>
+
+  <!-- ---------- AVAILABILITY & CURTAILMENT ---------- -->
+  <section id="tab-curtail" class="tabpane">
+    <div class="card intro">
+      <h2>Availability and curtailment forecast</h2>
+      <p>Two versions of the forecast: <b>technically possible feed-in</b> (weather potential minus outages, maintenance and scheduled shutdowns) and
+        <b>real feed-in</b> (additionally grid restrictions and market-driven curtailment at low or negative day-ahead prices).</p>
+    </div>
+    <div class="card"><div class="card-h"><h2>Maintenance &amp; grid restriction plan</h2><button id="cuAdd" class="btn ghost sm">+ Add entry</button></div>
+      <div class="tablewrap"><table id="cuPlan" class="edit"></table></div>
+      <p class="sub">Maintenance: MW unavailable. Grid restriction: maximum export (MW) for the whole plant during the window. Saved in this browser.</p></div>
+    <div class="row3">
+      <div class="card"><h2>Scheduled shutdowns (wind)</h2>
+        <label class="check"><input type="checkbox" id="cuNightOn"> Night mode (noise)</label>
+        <div class="grid3"><label>From (h)<input id="cuNightFrom" type="number" min="0" max="23"></label><label>To (h)<input id="cuNightTo" type="number" min="0" max="23"></label><label>Output (%)<input id="cuNightPct" type="number"></label></div>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="cuShOn"> Shadow-flicker shutdown</label>
+        <div class="grid2"><label>Sun azimuth from (°)<input id="cuShAz1" type="number"></label><label>to (°)<input id="cuShAz2" type="number"></label>
+          <label>Sun elevation below (°)<input id="cuShElev" type="number"></label><label>Farm output lost (%)<input id="cuShPct" type="number"></label></div>
+        <p class="sub">Active only when the sun is in that sector and it is sunny (GHI &gt; 60 % of clear sky).</p></div>
+      <div class="card"><h2>Market &amp; grid</h2>
+        <label class="check"><input type="checkbox" id="cuMkOn"> Curtail when day-ahead price is below</label>
+        <div class="grid2"><label>Threshold (€/MWh)<input id="cuMkThr" type="number"></label>
+          <label>Applies to<select id="cuMkScope"><option value="all">Wind + solar</option><option value="wind">Wind only</option><option value="solar">Solar only</option></select></label></div>
+        <label>Permanent export limit (MW, 0 = none)<input id="cuGrid" type="number" step="0.1"></label></div>
+      <div class="card"><h2>Weather-driven (PV)</h2>
+        <label class="check"><input type="checkbox" id="cuSnowOn"> Snow cover derate</label>
+        <div class="grid2"><label>Snow depth ≥ (cm)<input id="cuSnowDepth" type="number"></label><label>Remaining output (%)<input id="cuSnowPct" type="number"></label></div>
+        <button id="cuRun" class="btn primary block" style="margin-top:14px">Compute feed-in versions</button>
+        <button id="cuCsv" class="btn ghost block" style="margin-top:8px">Download both versions (CSV)</button>
+        <div id="cuStatus" class="status"></div></div>
+    </div>
+    <div class="kpis" id="cuKpis"></div>
+    <div class="card"><div class="card-h"><h2>Wind: potential vs technically possible vs real feed-in</h2><span class="sub">MW, P50</span></div><div class="chart sm"><canvas id="cCuW"></canvas></div></div>
+    <div class="card"><div class="card-h"><h2>Solar: potential vs technically possible vs real feed-in</h2><span class="sub">MW, P50</span></div><div class="chart sm"><canvas id="cCuS"></canvas></div></div>
+    <div class="card"><div class="card-h"><h2>Energy lost by cause</h2></div><div class="tablewrap"><table id="cuLoss"></table></div></div>
+  </section>
+
   <!-- ---------- TRADING ---------- -->
   <section id="tab-trading" class="tabpane">
     <div class="card intro">
@@ -150,6 +241,7 @@
       <div class="controls">
         <label>Asset<select id="trAsset"><option value="wind">Wind farm</option><option value="solar">Solar plant</option><option value="hybrid">Hybrid (wind + solar)</option></select></label>
         <div class="chips"><button class="chip" data-scn="1">Lecture scenario 1 (λ↑=λD)</button><button class="chip" data-scn="2">Lecture scenario 2 (λ↑=λD+10)</button></div>
+        <label class="check"><input type="checkbox" id="trCurt"> Use real feed-in (Availability tab)</label>
         <button id="trRun" class="btn primary">Compute offers</button>
       </div>
       <div id="trStatus" class="status"></div>
@@ -255,6 +347,17 @@
       <div class="card"><div class="card-h"><h2>Representative days — solar</h2><span class="sub">capacity factor by hour (site time)</span></div><div class="chart sm"><canvas id="cRepS"></canvas></div></div>
     </div>
     <div class="row2">
+      <div class="card"><div class="card-h"><h2>Power curve</h2><span class="sub">per turbine, standard vs site air density</span></div><div class="chart sm"><canvas id="cPc"></canvas></div></div>
+      <div class="card"><div class="card-h"><h2>Hub-height wind distribution</h2><span class="sub">% of hours, with Weibull fit</span></div><div class="chart sm"><canvas id="cWdist"></canvas></div></div>
+    </div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Annual energy production (AEP)</h2><span class="sub">selected year</span></div><div class="tablewrap"><table id="aepTbl"></table></div>
+        <div class="controls" style="margin-top:12px"><label>Years for long-term<input id="aepYears" type="number" value="5" min="3" max="10"></label>
+          <label>Other uncertainty (%)<input id="aepUnc" type="number" value="8" step="0.5"></label><button id="aepRun" class="btn primary">Long-term P50 / P90</button></div>
+        <p class="sub" id="aepLt">Other uncertainty covers power-curve, loss and reanalysis-bias uncertainty (typically 6–10 %).</p></div>
+      <div class="card"><div class="card-h"><h2>Inter-annual variability</h2><span class="sub">net wind AEP per ERA5 year</span></div><div class="chart sm"><canvas id="cAep"></canvas></div></div>
+    </div>
+    <div class="row2">
       <div class="card"><div class="card-h"><h2>Duration curve check</h2><span class="sub">full year vs weighted representative days (wind)</span></div><div class="chart sm"><canvas id="cDur"></canvas></div></div>
       <div class="card"><div class="card-h"><h2>Clusters</h2></div><div class="tablewrap"><table id="asTbl"></table></div></div>
     </div>
@@ -284,6 +387,10 @@
         <li><b>Electricity markets</b> — two-price balancing revenue R(q); optimal offer is the τ* quantile.</li>
         <li><b>Decision-focused learning</b> — linear offer q = β₀ + β₁x trained by maximising realised revenue (projected subgradient ascent), compared with OLS.</li>
         <li><b>Clustering</b> — k-means++ on daily wind/solar profiles; weighted representative days; elbow plot; duration-curve check (chronology between days is lost).</li>
+        <li><b>Combination forecast</b> — inverse-MSE weights per weather situation (regime-dependent ensemble of models), residual quantiles per situation as uncertainty, exponentially decaying short-term correction.</li>
+        <li><b>Warnings</b> — rule-based hazards evaluated in every model / ensemble member; level from the share of scenarios.</li>
+        <li><b>Availability</b> — maintenance and grid plans, night-mode and shadow-flicker (solar geometry + clear-sky index) shutdowns, snow derate, market curtailment below a price threshold.</li>
+        <li><b>AEP</b> — time-series and Weibull (method of moments) AEP, density-corrected power curve, long-term P50/P90 from several ERA5 years.</li>
         <li><b>MDPs</b> — finite-horizon backward induction for battery scheduling; value and policy iteration for the Markov-price battery exercise.</li>
       </ul>
       <p class="hint">Forecasts are indicative only. Weather data by Open-Meteo.com, prices from Energinet (www.energidataservice.dk).</p>
@@ -298,6 +405,9 @@
 <script src="assets/js/api.js"></script>
 <script src="assets/js/site.js"></script>
 <script src="assets/js/forecast.js"></script>
+<script src="assets/js/combine.js"></script>
+<script src="assets/js/warnings.js"></script>
+<script src="assets/js/curtail.js"></script>
 <script src="assets/js/trading.js"></script>
 <script src="assets/js/storage.js"></script>
 <script src="assets/js/evaluate.js"></script>
