@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WindSolar Studio — Renewable Power Forecasting & Trading</title>
+<meta name="description" content="Free wind and solar power forecasting, day-ahead trading, storage scheduling and site assessment from open weather models.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23184f95'/%3E%3Cpath d='M16 6v10l8 5M16 16l-8 5' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23eda100'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="currentColor"/><path d="M16 6v10l8 5M16 16l-8 5" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none"/><circle cx="16" cy="16" r="2.6" fill="#eda100"/></svg>
+    <div><strong>WindSolar Studio</strong><span>Forecast · Trade · Store · Assess</span></div>
+  </div>
+  <div class="site-chip" id="siteChip">No site selected</div>
+  <nav class="top-links">
+    <a href="plant.html" title="Hourly auto-forecast for your configured plant (GitHub Actions)">My plant</a>
+    <button id="themeBtn" class="icon-btn" title="Toggle light/dark theme" aria-label="Toggle theme">◐</button>
+  </nav>
+</header>
+
+<div class="layout">
+<!-- ===================== SIDEBAR ===================== -->
+<aside class="sidebar">
+  <section class="panel">
+    <h3>Location</h3>
+    <div class="search">
+      <input id="placeInput" placeholder="Search a city or wind farm area…" autocomplete="off" aria-label="Search location">
+      <ul id="placeResults" class="dropdown" hidden></ul>
+    </div>
+    <button id="gpsBtn" class="btn secondary block">📍 Use my GPS location</button>
+    <div id="map" class="map" aria-label="Map: click to choose a site"></div>
+    <p class="hint">Click the map or drag the marker to move the site.</p>
+    <div class="grid2">
+      <label>Latitude<input id="lat" type="number" step="0.0001" value="55.6761"></label>
+      <label>Longitude<input id="lon" type="number" step="0.0001" value="12.5683"></label>
+    </div>
+    <div id="siteMeta" class="meta"></div>
+  </section>
+
+  <section class="panel">
+    <h3>Period</h3>
+    <div class="chips" id="datePresets">
+      <button data-preset="next7" class="chip active">Next 7 d</button>
+      <button data-preset="next14" class="chip">Next 14 d</button>
+      <button data-preset="tomorrow" class="chip">Tomorrow</button>
+      <button data-preset="past7" class="chip">Past 7 d</button>
+      <button data-preset="past30" class="chip">Past 30 d</button>
+    </div>
+    <div class="grid2">
+      <label>Start<input id="startDate" type="date"></label>
+      <label>End<input id="endDate" type="date"></label>
+    </div>
+    <p class="hint" id="dateHint"></p>
+  </section>
+
+  <section class="panel">
+    <h3>Market</h3>
+    <label>Day-ahead price area
+      <select id="priceArea"><option value="manual">Manual flat price</option></select>
+    </label>
+    <label>Flat / fallback price (€/MWh)<input id="flatPrice" type="number" value="60"></label>
+    <div class="grid2">
+      <label title="λ↑ = λD + Δ↑ (price paid for each MWh short)">Up-reg. premium Δ↑<input id="dUp" type="number" value="10"></label>
+      <label title="λ↓ = λD − Δ↓ (price received for each MWh surplus)">Down-reg. discount Δ↓<input id="dDown" type="number" value="10"></label>
+    </div>
+    <p class="hint">Two-price balancing as in the lecture: λ↑ = λ<sub>D</sub> + Δ↑, λ↓ = λ<sub>D</sub> − Δ↓ (€/MWh).</p>
+  </section>
+
+  <details class="panel" open>
+    <summary><h3>Wind farm</h3></summary>
+    <div class="grid2">
+      <label>Turbines<input id="wN" type="number" value="10"></label>
+      <label>Rated (MW)<input id="wRated" type="number" step="0.1" value="3.6"></label>
+      <label>Hub height (m)<input id="wHub" type="number" value="120"></label>
+      <label>Losses (%)<input id="wLoss" type="number" value="8"></label>
+      <label>Cut-in (m/s)<input id="wVin" type="number" step="0.1" value="3"></label>
+      <label>Rated speed<input id="wVr" type="number" step="0.1" value="12"></label>
+      <label>Cut-out (m/s)<input id="wVout" type="number" step="0.1" value="25"></label>
+    </div>
+    <label>Manufacturer power curve (optional, "m/s, kW" per line)
+      <textarea id="wCurve" rows="3" placeholder="3, 35&#10;4, 175&#10;…&#10;25, 3600"></textarea></label>
+  </details>
+
+  <details class="panel" open>
+    <summary><h3>Solar PV plant</h3></summary>
+    <div class="grid2">
+      <label>DC capacity (kWp)<input id="sKwp" type="number" value="5000"></label>
+      <label>AC limit (kW)<input id="sAc" type="number" value="4300"></label>
+      <label>Tilt (°)<input id="sTilt" type="number" value="30"></label>
+      <label>Azimuth (° 180=S)<input id="sAzi" type="number" value="180"></label>
+      <label>Temp. coeff (%/°C)<input id="sGamma" type="number" step="0.01" value="-0.35"></label>
+      <label>Losses (%)<input id="sLoss" type="number" value="12"></label>
+    </div>
+  </details>
+
+  <details class="panel">
+    <summary><h3>Weather models</h3></summary>
+    <div id="modelBoxes" class="checks"></div>
+    <label class="check"><input type="checkbox" id="useEns" checked> Ensembles for P10/P50/P90 (future dates)</label>
+    <div id="ensBoxes" class="checks"></div>
+  </details>
+
+  <button id="runBtn" class="btn primary block big">Update forecast</button>
+  <div id="runStatus" class="status"></div>
+</aside>
+
+<!-- ===================== MAIN ===================== -->
+<main class="main">
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="forecast" class="tab active">Forecast</button>
+    <button role="tab" data-tab="trading" class="tab">Day-ahead trading</button>
+    <button role="tab" data-tab="storage" class="tab">Battery storage</button>
+    <button role="tab" data-tab="evaluate" class="tab">Evaluate &amp; learn</button>
+    <button role="tab" data-tab="assess" class="tab">Site assessment</button>
+    <button role="tab" data-tab="methods" class="tab">Methods</button>
+  </nav>
+
+  <!-- ---------- FORECAST ---------- -->
+  <section id="tab-forecast" class="tabpane active">
+    <div id="emptyState" class="empty">
+      <h2>Pick a site, choose dates, press <em>Update forecast</em></h2>
+      <p>Four global weather models (ECMWF, GFS, ICON, Météo-France) and up to three ensembles are converted to wind-farm and PV power for any location on Earth — free, no account.</p>
+    </div>
+    <div class="kpis" id="fcKpis"></div>
+    <div class="card"><div class="card-h"><h2>Wind farm power</h2><span class="sub">MW · band = ensemble P10–P90</span></div><div class="chart"><canvas id="cWind"></canvas></div></div>
+    <div class="card"><div class="card-h"><h2>Solar PV power</h2><span class="sub">MW · band = ensemble P10–P90</span></div><div class="chart"><canvas id="cSolar"></canvas></div></div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Hub-height wind speed</h2><span class="sub">m/s per model</span></div><div class="chart sm"><canvas id="cWs"></canvas></div></div>
+      <div class="card"><div class="card-h"><h2>Daily energy</h2><span class="sub">MWh, P50 with P10–P90</span>
+        <button id="csvBtn" class="btn ghost sm">Download CSV</button></div>
+        <div class="tablewrap"><table id="dailyTbl"></table></div></div>
+    </div>
+  </section>
+
+  <!-- ---------- TRADING ---------- -->
+  <section id="tab-trading" class="tabpane">
+    <div class="card intro">
+      <h2>Optimal day-ahead offer</h2>
+      <p>Revenue for offer <i>q</i> and production <i>p</i>: <b>R(q) = λ<sub>D</sub>q + λ↓(p−q)<sup>+</sup> − λ↑(q−p)<sup>+</sup></b>.
+        Maximising the expected revenue over the forecast distribution gives the newsvendor solution:
+        offer the <b>τ* = (λ<sub>D</sub>−λ↓)/(λ↑−λ↓)</b> quantile. Quantile forecasts (pinball loss) are therefore the right tool, not the MSE-optimal mean.</p>
+      <div class="controls">
+        <label>Asset<select id="trAsset"><option value="wind">Wind farm</option><option value="solar">Solar plant</option><option value="hybrid">Hybrid (wind + solar)</option></select></label>
+        <div class="chips"><button class="chip" data-scn="1">Lecture scenario 1 (λ↑=λD)</button><button class="chip" data-scn="2">Lecture scenario 2 (λ↑=λD+10)</button></div>
+        <button id="trRun" class="btn primary">Compute offers</button>
+      </div>
+      <div id="trStatus" class="status"></div>
+    </div>
+    <div class="kpis" id="trKpis"></div>
+    <div class="card"><div class="card-h"><h2>Offers vs forecast uncertainty</h2><span class="sub">MW per hour</span></div><div class="chart"><canvas id="cOffer"></canvas></div></div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Day-ahead price</h2><span class="sub" id="priceSrc">€/MWh</span></div><div class="chart sm"><canvas id="cPrice"></canvas></div></div>
+      <div class="card"><div class="card-h"><h2>Expected revenue vs offer</h2>
+        <label class="inline">Hour <select id="trHour"></select></label></div><div class="chart sm"><canvas id="cRevCurve"></canvas></div></div>
+    </div>
+    <div class="card"><div class="card-h"><h2>Strategy comparison</h2><span class="sub">expected revenue over all scenarios and hours</span></div><div class="tablewrap"><table id="trTbl"></table></div></div>
+  </section>
+
+  <!-- ---------- STORAGE ---------- -->
+  <section id="tab-storage" class="tabpane">
+    <div class="card intro">
+      <h2>Battery scheduling with dynamic programming</h2>
+      <p>State = state of charge (SoC), action = charge / idle / discharge, reward = price × energy − degradation.
+        The optimal schedule is found by backward induction of the Bellman equation
+        <b>V<sub>t</sub>(s) = max<sub>a</sub> [ r<sub>t</sub>(s,a) + V<sub>t+1</sub>(s′) ]</b> over the selected period.</p>
+      <div class="controls grid-controls">
+        <label>Energy (MWh)<input id="bE" type="number" value="20"></label>
+        <label>Power (MW)<input id="bP" type="number" value="10"></label>
+        <label>Round-trip eff. (%)<input id="bEta" type="number" value="88"></label>
+        <label>Start SoC (%)<input id="bS0" type="number" value="50"></label>
+        <label>Degradation (€/MWh)<input id="bDeg" type="number" value="2"></label>
+        <label>Charging source<select id="bSrc"><option value="grid">Grid (arbitrage)</option><option value="wind">Own wind farm only</option><option value="solar">Own PV only</option><option value="hybrid">Own wind + PV only</option></select></label>
+        <button id="bRun" class="btn primary">Optimise schedule</button>
+      </div>
+      <div id="bStatus" class="status"></div>
+    </div>
+    <div class="kpis" id="bKpis"></div>
+    <div class="card"><div class="card-h"><h2>State of charge</h2><span class="sub">MWh</span></div><div class="chart sm"><canvas id="cSoc"></canvas></div></div>
+    <div class="card"><div class="card-h"><h2>Charge (−) / discharge (+)</h2><span class="sub">MW at the grid connection</span></div><div class="chart sm"><canvas id="cBat"></canvas></div></div>
+
+    <div class="card intro">
+      <h2>Lecture MDP: battery with a Markov price</h2>
+      <p>The exercise from the MDP lecture: prices switch between two levels as a Markov chain. Solved for the infinite-horizon discounted value
+        <b>V*(s) = max<sub>a</sub>[R(s,a) + γ Σ P<sub>sa</sub>(s′)V*(s′)]</b> with both <b>value iteration</b> and <b>policy iteration</b>.</p>
+      <div class="controls grid-controls">
+        <label>Capacity (MWh)<input id="mE" type="number" value="200"></label>
+        <label>Power (MWh/step)<input id="mP" type="number" value="100"></label>
+        <label>Low price<input id="mLo" type="number" value="10"></label>
+        <label>High price<input id="mHi" type="number" value="50"></label>
+        <label>P(low→high)<input id="mPlh" type="number" step="0.05" value="0.8"></label>
+        <label>P(high→low)<input id="mPhl" type="number" step="0.05" value="0.5"></label>
+        <label>Discount γ<input id="mGamma" type="number" step="0.01" value="0.9"></label>
+        <button id="mRun" class="btn primary">Solve MDP</button>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Optimal policy π*(s)</h2></div><div class="tablewrap"><table id="mPolicy"></table></div><p class="sub" id="mInfo"></p></div>
+      <div class="card"><div class="card-h"><h2>Value-iteration convergence</h2><span class="sub">max |V<sub>k+1</sub> − V<sub>k</sub>|</span></div><div class="chart sm"><canvas id="cConv"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- ---------- EVALUATE ---------- -->
+  <section id="tab-evaluate" class="tabpane">
+    <div class="card intro">
+      <h2>Evaluate forecasts against your measurements and learn a better model</h2>
+      <p>Upload hourly plant data (CSV with <code>time</code> in UTC and <code>power_mw</code>, or <code>wind_power_mw</code>/<code>solar_power_mw</code>).
+        The app downloads the archived forecasts for the same hours and compares: raw physical model → <b>ridge regression</b> with polynomial features
+        (λ and degree chosen by blocked cross-validation) → <b>decision-focused learning</b> (linear offer trained to maximise revenue, not accuracy).</p>
+      <div class="controls">
+        <label class="file">Measurements CSV<input id="evFile" type="file" accept=".csv,text/csv"></label>
+        <label>Asset<select id="evAsset"><option value="wind">Wind</option><option value="solar">Solar</option></select></label>
+        <label>Test share (%)<input id="evTest" type="number" value="25"></label>
+        <button id="evDemo" class="btn ghost">Make demo file</button>
+        <button id="evRun" class="btn primary">Run evaluation</button>
+      </div>
+      <div id="evStatus" class="status"></div>
+    </div>
+    <div class="kpis" id="evKpis"></div>
+    <div class="card"><div class="card-h"><h2>Test-period error</h2><span class="sub">MAE penalises all errors equally; RMSE penalises large errors more — report both</span></div><div class="tablewrap"><table id="evTbl"></table></div></div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Validation curve</h2><span class="sub">blocked 5-fold CV RMSE vs ridge λ</span></div><div class="chart sm"><canvas id="cCv"></canvas></div></div>
+      <div class="card"><div class="card-h"><h2>Learned power curve</h2><span class="sub">measured vs forecast, test period</span></div><div class="chart sm"><canvas id="cScatter"></canvas></div></div>
+    </div>
+    <div class="card"><div class="card-h"><h2>Test period time series</h2><span class="sub">MW</span></div><div class="chart"><canvas id="cEvTs"></canvas></div></div>
+  </section>
+
+  <!-- ---------- ASSESS ---------- -->
+  <section id="tab-assess" class="tabpane">
+    <div class="card intro">
+      <h2>Site assessment and representative days</h2>
+      <p>A full year of ERA5 reanalysis is converted to hourly capacity factors. Each day becomes a 48-value vector (24 h wind + 24 h solar) and
+        <b>k-means</b> groups them into representative days, each weighted by the number of days it represents — the input format of capacity-expansion models.</p>
+      <div class="controls">
+        <label>Year<select id="asYear"></select></label>
+        <label>Clusters k<input id="asK" type="number" value="6" min="2" max="8"></label>
+        <button id="asRun" class="btn primary">Analyse year</button>
+      </div>
+      <div id="asStatus" class="status"></div>
+    </div>
+    <div class="kpis" id="asKpis"></div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Monthly capacity factor</h2><span class="sub">%</span></div><div class="chart sm"><canvas id="cMonthly"></canvas></div></div>
+      <div class="card"><div class="card-h"><h2>Elbow plot</h2><span class="sub">within-cluster sum of squares vs k</span></div><div class="chart sm"><canvas id="cElbow"></canvas></div></div>
+    </div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Representative days — wind</h2><span class="sub">capacity factor by hour (site time)</span></div><div class="chart sm"><canvas id="cRepW"></canvas></div></div>
+      <div class="card"><div class="card-h"><h2>Representative days — solar</h2><span class="sub">capacity factor by hour (site time)</span></div><div class="chart sm"><canvas id="cRepS"></canvas></div></div>
+    </div>
+    <div class="row2">
+      <div class="card"><div class="card-h"><h2>Duration curve check</h2><span class="sub">full year vs weighted representative days (wind)</span></div><div class="chart sm"><canvas id="cDur"></canvas></div></div>
+      <div class="card"><div class="card-h"><h2>Clusters</h2></div><div class="tablewrap"><table id="asTbl"></table></div></div>
+    </div>
+  </section>
+
+  <!-- ---------- METHODS ---------- -->
+  <section id="tab-methods" class="tabpane">
+    <div class="card prose">
+      <h2>Methods and data</h2>
+      <h3>Data sources (all free, no API key)</h3>
+      <ul>
+        <li><b>Open-Meteo</b> — Forecast API (≤16 days), Historical Forecast API (archived forecasts), Ensemble API (ECMWF ENS, GEFS, ICON-EPS), ERA5 archive. CC BY 4.0, non-commercial use.</li>
+        <li><b>Energi Data Service (Energinet)</b> — Nordic/German day-ahead prices (DK1, DK2, DE, NO, SE). CC BY 4.0.</li>
+        <li><b>BigDataCloud</b> — client-side reverse geocoding of your GPS position. <b>OpenStreetMap</b> map tiles.</li>
+      </ul>
+      <h3>Physical models</h3>
+      <ul>
+        <li>Hub-height wind: hourly power-law shear fitted between 10 m and 100 m; air density from surface pressure and temperature; IEC density-corrected power curve.</li>
+        <li>PV: solar position at mid-interval, Erbs decomposition, isotropic transposition, Faiman cell temperature, PVWatts DC model, inverter clipping.</li>
+        <li>Hourly products: energy in hour [h, h+1) uses the radiation mean ending at h+1 and the mean of instantaneous wind at h and h+1.</li>
+      </ul>
+      <h3>Course methods used (DTU 46765)</h3>
+      <ul>
+        <li><b>Regression, regularisation & validation</b> — ridge regression with polynomial features; λ and degree chosen by blocked k-fold CV (no shuffling of time series); ridge keeps XᵀX + λI invertible even with redundant features.</li>
+        <li><b>Error metrics</b> — MAE (median-optimal, robust) and RMSE (mean-optimal, penalises large errors) shown side by side, normalised by capacity.</li>
+        <li><b>Quantile forecasting</b> — ensemble quantiles P10/P50/P90, pinball loss for evaluation.</li>
+        <li><b>Electricity markets</b> — two-price balancing revenue R(q); optimal offer is the τ* quantile.</li>
+        <li><b>Decision-focused learning</b> — linear offer q = β₀ + β₁x trained by maximising realised revenue (projected subgradient ascent), compared with OLS.</li>
+        <li><b>Clustering</b> — k-means++ on daily wind/solar profiles; weighted representative days; elbow plot; duration-curve check (chronology between days is lost).</li>
+        <li><b>MDPs</b> — finite-horizon backward induction for battery scheduling; value and policy iteration for the Markov-price battery exercise.</li>
+      </ul>
+      <p class="hint">Forecasts are indicative only. Weather data by Open-Meteo.com, prices from Energinet (www.energidataservice.dk).</p>
+    </div>
+  </section>
+</main>
+</div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script src="assets/js/util.js"></script>
+<script src="assets/js/physics.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/site.js"></script>
+<script src="assets/js/forecast.js"></script>
+<script src="assets/js/trading.js"></script>
+<script src="assets/js/storage.js"></script>
+<script src="assets/js/evaluate.js"></script>
+<script src="assets/js/assess.js"></script>
+<script src="assets/js/main.js"></script>
+</body>
+</html>
