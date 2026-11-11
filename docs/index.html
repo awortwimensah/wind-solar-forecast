@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/app.css?v=4">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 </head>
@@ -123,7 +123,6 @@
     <button role="tab" data-tab="storage" class="tab">Battery storage</button>
     <button role="tab" data-tab="evaluate" class="tab">Evaluate &amp; learn</button>
     <button role="tab" data-tab="assess" class="tab">Site assessment</button>
-    <button role="tab" data-tab="methods" class="tab">Methods</button>
   </nav>
 
   <!-- ---------- FORECAST ---------- -->
@@ -371,55 +370,23 @@
     </div>
   </section>
 
-  <!-- ---------- METHODS ---------- -->
-  <section id="tab-methods" class="tabpane">
-    <div class="card prose">
-      <h2>Methods and data</h2>
-      <h3>Data sources (all free, no API key)</h3>
-      <ul>
-        <li><b>Open-Meteo</b> — Forecast API (≤16 days), Historical Forecast API (archived forecasts), Ensemble API (ECMWF ENS, GEFS, ICON-EPS), ERA5 archive. CC BY 4.0, non-commercial use.</li>
-        <li><b>Energi Data Service (Energinet)</b> — Nordic/German day-ahead prices (DK1, DK2, DE, NO, SE). CC BY 4.0.</li>
-        <li><b>BigDataCloud</b> — client-side reverse geocoding of your GPS position. <b>OpenStreetMap</b> map tiles.</li>
-      </ul>
-      <h3>Physical models</h3>
-      <ul>
-        <li>Hub-height wind: hourly power-law shear fitted between 10 m and 100 m; air density from surface pressure and temperature; IEC density-corrected power curve.</li>
-        <li>PV: solar position at mid-interval, Erbs decomposition, isotropic transposition, Faiman cell temperature, PVWatts DC model, inverter clipping.</li>
-        <li>Hourly products: energy in hour [h, h+1) uses the radiation mean ending at h+1 and the mean of instantaneous wind at h and h+1.</li>
-      </ul>
-      <h3>Course methods used (DTU 46765)</h3>
-      <ul>
-        <li><b>Regression, regularisation & validation</b> — ridge regression with polynomial features; λ and degree chosen by blocked k-fold CV (no shuffling of time series); ridge keeps XᵀX + λI invertible even with redundant features.</li>
-        <li><b>Error metrics</b> — MAE (median-optimal, robust) and RMSE (mean-optimal, penalises large errors) shown side by side, normalised by capacity.</li>
-        <li><b>Quantile forecasting</b> — ensemble quantiles P10/P50/P90, pinball loss for evaluation.</li>
-        <li><b>Electricity markets</b> — two-price balancing revenue R(q); optimal offer is the τ* quantile.</li>
-        <li><b>Decision-focused learning</b> — linear offer q = β₀ + β₁x trained by maximising realised revenue (projected subgradient ascent), compared with OLS.</li>
-        <li><b>Clustering</b> — k-means++ on daily wind/solar profiles; weighted representative days; elbow plot; duration-curve check (chronology between days is lost).</li>
-        <li><b>Combination forecast</b> — inverse-MSE weights per weather situation (regime-dependent ensemble of models), residual quantiles per situation as uncertainty, exponentially decaying short-term correction.</li>
-        <li><b>Warnings</b> — rule-based hazards evaluated in every model / ensemble member; level from the share of scenarios.</li>
-        <li><b>Availability</b> — maintenance and grid plans, night-mode and shadow-flicker (solar geometry + clear-sky index) shutdowns, snow derate, market curtailment below a price threshold.</li>
-        <li><b>AEP</b> — time-series and Weibull (method of moments) AEP, density-corrected power curve, long-term P50/P90 from several ERA5 years.</li>
-        <li><b>MDPs</b> — finite-horizon backward induction for battery scheduling; value and policy iteration for the Markov-price battery exercise.</li>
-      </ul>
-      <p class="hint">Forecasts are indicative only. Weather data by Open-Meteo.com, prices from Energinet (www.energidataservice.dk).</p>
-    </div>
-  </section>
 </main>
 </div>
+<footer class="site-footer">Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0) · Prices from <a href="https://www.energidataservice.dk/" target="_blank" rel="noopener">Energinet</a> · Map © OpenStreetMap contributors · Forecasts are indicative only, not for trading without validation.</footer>
 <div id="toasts" class="toasts" aria-live="polite"></div>
 
-<script src="assets/js/util.js"></script>
-<script src="assets/js/physics.js"></script>
-<script src="assets/js/api.js"></script>
-<script src="assets/js/site.js"></script>
-<script src="assets/js/forecast.js"></script>
-<script src="assets/js/combine.js"></script>
-<script src="assets/js/warnings.js"></script>
-<script src="assets/js/curtail.js"></script>
-<script src="assets/js/trading.js"></script>
-<script src="assets/js/storage.js"></script>
-<script src="assets/js/evaluate.js"></script>
-<script src="assets/js/assess.js"></script>
-<script src="assets/js/main.js"></script>
+<script src="assets/js/util.js?v=4"></script>
+<script src="assets/js/physics.js?v=4"></script>
+<script src="assets/js/api.js?v=4"></script>
+<script src="assets/js/site.js?v=4"></script>
+<script src="assets/js/forecast.js?v=4"></script>
+<script src="assets/js/combine.js?v=4"></script>
+<script src="assets/js/warnings.js?v=4"></script>
+<script src="assets/js/curtail.js?v=4"></script>
+<script src="assets/js/trading.js?v=4"></script>
+<script src="assets/js/storage.js?v=4"></script>
+<script src="assets/js/evaluate.js?v=4"></script>
+<script src="assets/js/assess.js?v=4"></script>
+<script src="assets/js/main.js?v=4"></script>
 </body>
 </html>

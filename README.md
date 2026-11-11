@@ -60,15 +60,50 @@ Runs entirely in the browser. No backend is needed, so it works on GitHub Pages 
 
 | Tab | What it does | Course topic |
 |---|---|---|
+| Combination | Inverse-MSE model weights learned per weather situation (against ERA5 or your measurements), uncertainty band per situation, short-term correction from the latest measurement, 'Now' line | Regression, validation, ensembles |
+| Warnings | Storm/cut-out, icing, low temperature, thunderstorm, snow on PV and fog; timeline, alerts and a copyable report | Probabilistic forecasting |
+| Availability | Maintenance and grid plans, night mode, shadow flicker, snow derate, market curtailment → technically possible vs real feed-in | Electricity markets |
 | Forecast | 4 NWP models + ECMWF/GFS/ICON ensembles → wind and PV power, P10/P50/P90, daily energy, CSV export | Regression, quantile forecasting |
 | Day-ahead trading | Offers the τ* = (λD−λ↓)/(λ↑−λ↓) quantile, compares the expected revenue of different strategies, plots the E[R(q)] curve | Electricity markets, newsvendor problem |
 | Battery storage | Backward-induction DP schedule using day-ahead prices (grid or own-plant charging); the lecture's Markov-price MDP solved by value and policy iteration | MDPs, value/policy iteration |
 | Evaluate & learn | Upload measurements → MAE/RMSE/bias/pinball → ridge regression (degree and λ chosen by blocked CV) → decision-focused learning | Regression, regularisation, validation, DFL |
-| Site assessment | One year of ERA5 → capacity factors → k-means representative days with weights, elbow plot, duration-curve check | Clustering for expansion planning |
+| Site assessment | Power curve (standard vs site density), Weibull fit, AEP (time series and Weibull), long-term P50/P90 from several years; one year of ERA5 → capacity factors → k-means representative days with weights, elbow plot, duration-curve check | Clustering for expansion planning |
 
 Free data sources: Open-Meteo (forecasts, archived forecasts, ensembles, ERA5), Energinet Energi Data Service (DK1/DK2/DE/NO/SE day-ahead prices),
 BigDataCloud (reverse geocoding of the GPS position) and OpenStreetMap tiles. The GPS button uses the browser's geolocation, which requires the
 https site (GitHub Pages provides it).
+
+## Methods and data
+
+### Data sources (all free, no API key)
+- **Open-Meteo**: Forecast API (up to 16 days), Historical Forecast API (archived forecasts), Ensemble API (ECMWF ENS, GEFS, ICON-EPS) and the ERA5 archive. CC BY 4.0, non-commercial use.
+- **Energi Data Service (Energinet)**: day-ahead prices for DK1, DK2, DE, NO and SE. CC BY 4.0.
+- **BigDataCloud**: turns the GPS position into a place name, in the browser. **OpenStreetMap** provides the map tiles (via Leaflet).
+
+### Physical models
+- **Hub-height wind:** a power-law shear exponent is fitted every hour between 10 m and 100 m. Air density comes from surface pressure and temperature, and the power curve is density-corrected (IEC 61400-12-1).
+- **PV:** sun position at the middle of each hour, Erbs decomposition, isotropic transposition, Faiman cell temperature, a PVWatts DC model and inverter clipping.
+- **Hourly energy:** the energy for hour [h, h+1) uses the radiation mean that ends at h+1 and the average of the instantaneous wind at h and h+1.
+
+### Course methods used (DTU 46765 Machine Learning for Energy Systems)
+| Method | Where in the app |
+|---|---|
+| Regression, regularisation, validation: ridge regression with polynomial features; λ and degree chosen by blocked k-fold cross-validation (no shuffling of time series). Ridge keeps XᵀX + λI invertible even with redundant features | Evaluate & learn |
+| Error metrics: MAE (the median minimises it; robust) and RMSE (the mean minimises it; penalises large errors), both normalised by capacity | Evaluate & learn, Combination |
+| Quantile forecasting: ensemble P10/P50/P90, pinball loss | Forecast, Evaluate & learn |
+| Electricity markets: two-price balancing revenue R(q) = λD·q + λ↓(p−q)⁺ − λ↑(q−p)⁺; the optimal offer is the τ* = (λD−λ↓)/(λ↑−λ↓) quantile | Day-ahead trading |
+| Decision-focused learning: a linear offer q = β₀ + β₁x trained to maximise realised revenue (projected subgradient ascent), compared with OLS. With additive penalties this is the same as linear quantile regression at τ* | Evaluate & learn |
+| Combination forecast: weights ∝ (1/MSE)^p per weather situation, with the sharpness p chosen on held-out data; residual quantiles per situation as the uncertainty band; short-term correction that fades as e^(−Δt/τ) | Combination |
+| Clustering: k-means++ on daily wind/solar profiles, weighted representative days, elbow plot, duration-curve check (the order of days is lost) | Site assessment |
+| MDPs: finite-horizon backward induction for battery scheduling; value iteration and policy iteration for the Markov-price battery exercise | Battery storage |
+| Warnings: rule-based hazards checked in every model and ensemble member; the warning level is the share of scenarios that meet the rule | Warnings |
+| Availability: maintenance and grid plans, night-mode and shadow-flicker shutdowns (sun position plus clear-sky index), snow derate, market curtailment below a price threshold | Availability |
+| AEP: time-series and Weibull (method of moments) AEP, density-corrected power curve, long-term P50/P90 from several ERA5 years | Site assessment |
+
+### Limitations
+Forecasts are indicative only. They have not been validated against plant measurements, the market model is simplified (fixed imbalance premiums, hourly resolution), and Open-Meteo's free tier is for non-commercial use. Do not use them for real trading without a backtest against measured data.
+
+*Weather data by Open-Meteo.com · Prices from Energinet (www.energidataservice.dk) · Map © OpenStreetMap contributors.*
 
 ## 1. Real power curve
 Choose one of these:
