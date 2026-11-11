@@ -13,7 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 </head>
-<body>
+<body class="no-data">
 <header class="topbar">
   <div class="brand">
     <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="currentColor"/><path d="M16 6v10l8 5M16 16l-8 5" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none"/><circle cx="16" cy="16" r="2.6" fill="#eda100"/></svg>
@@ -115,21 +115,36 @@
 <!-- ===================== MAIN ===================== -->
 <main class="main">
   <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="forecast" class="tab active">Forecast</button>
-    <button role="tab" data-tab="combine" class="tab">Combination</button>
-    <button role="tab" data-tab="warnings" class="tab">Warnings <span id="wnBadge" class="tabbadge"></span></button>
-    <button role="tab" data-tab="curtail" class="tab">Availability</button>
-    <button role="tab" data-tab="trading" class="tab">Day-ahead trading</button>
-    <button role="tab" data-tab="storage" class="tab">Battery storage</button>
-    <button role="tab" data-tab="evaluate" class="tab">Evaluate &amp; learn</button>
-    <button role="tab" data-tab="assess" class="tab">Site assessment</button>
+    <button role="tab" data-tab="forecast" class="tab active"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Forecast</button>
+    <button role="tab" data-tab="combine" class="tab"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>Combination</button>
+    <button role="tab" data-tab="warnings" class="tab"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Warnings <span id="wnBadge" class="tabbadge"></span></button>
+    <button role="tab" data-tab="curtail" class="tab"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v10"/><path d="M5.6 6.6a8 8 0 1 0 12.8 0"/></svg>Availability</button>
+    <button role="tab" data-tab="trading" class="tab"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Day-ahead trading</button>
+    <button role="tab" data-tab="storage" class="tab"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11v2M6 10v4M10 10v4"/></svg>Battery storage</button>
+    <button role="tab" data-tab="evaluate" class="tab"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>Evaluate &amp; learn</button>
+    <button role="tab" data-tab="assess" class="tab"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Site assessment</button>
   </nav>
 
   <!-- ---------- FORECAST ---------- -->
   <section id="tab-forecast" class="tabpane active">
-    <div id="emptyState" class="empty">
-      <h2>Pick a site, choose dates, press <em>Update forecast</em></h2>
-      <p>Four global weather models (ECMWF, GFS, ICON, Météo-France) and up to three ensembles are converted to wind-farm and PV power for any location on Earth — free, no account.</p>
+    <div id="emptyState" class="hero">
+      <div class="hero-text">
+        <span class="eyebrow">Free · open weather models · any site on Earth</span>
+        <h2>Wind &amp; solar power forecasts, trading and storage — in one studio</h2>
+        <p>Pick a site with GPS, the map or search, choose your dates and press <b>Update forecast</b>. Four global weather models and up to three ensembles become
+          wind-farm and PV power with P10/P50/P90 uncertainty, optimal day-ahead offers, battery schedules, weather warnings and a full site assessment.</p>
+        <ul class="hero-points"><li>ECMWF · GFS · ICON · Météo-France</li><li>Ensemble P10/P50/P90</li><li>Real Nordic day-ahead prices</li></ul>
+      </div>
+      <svg class="hero-art" viewBox="0 0 240 180" aria-hidden="true">
+        <defs><linearGradient id="hg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--series-1)" stop-opacity=".18"/><stop offset="1" stop-color="var(--series-1)" stop-opacity="0"/></linearGradient></defs>
+        <circle cx="185" cy="45" r="22" fill="#eda100" opacity=".9"/>
+        <g stroke="#eda100" stroke-width="3" stroke-linecap="round" opacity=".6"><path d="M185 12v-8M185 86v-8M152 45h-8M226 45h-8M162 22l-6-6M214 74l-6-6M208 22l6-6M156 74l6-6"/></g>
+        <path d="M0 150 C40 120 80 135 120 118 S200 110 240 96 V180 H0Z" fill="url(#hg)"/>
+        <path d="M0 150 C40 120 80 135 120 118 S200 110 240 96" fill="none" stroke="var(--series-1)" stroke-width="2.5"/>
+        <g fill="none" stroke="var(--text-secondary)" stroke-width="3" stroke-linecap="round"><path d="M80 160V70"/><path d="M80 70l-6-40M80 70l38 16M80 70l-32 24"/></g>
+        <circle cx="80" cy="70" r="5" fill="var(--text-secondary)"/>
+        <g transform="translate(120 128)" fill="var(--series-1)" opacity=".85"><path d="M0 22l14-18h44l-14 18z"/><path d="M8 22v10M44 22v10" stroke="var(--text-secondary)" stroke-width="2"/></g>
+      </svg>
     </div>
     <div class="kpis" id="fcKpis"></div>
     <div class="card"><div class="card-h"><h2>Wind farm power</h2><span class="sub">MW · band = ensemble P10–P90</span></div><div class="chart"><canvas id="cWind"></canvas></div></div>
@@ -247,7 +262,7 @@
         offer the <b>τ* = (λ<sub>D</sub>−λ↓)/(λ↑−λ↓)</b> quantile. Quantile forecasts (pinball loss) are therefore the right tool, not the MSE-optimal mean.</p>
       <div class="controls">
         <label>Asset<select id="trAsset"><option value="wind">Wind farm</option><option value="solar">Solar plant</option><option value="hybrid">Hybrid (wind + solar)</option></select></label>
-        <div class="chips"><button class="chip" data-scn="1">scenario 1 (λ↑=λD)</button><button class="chip" data-scn="2">scenario 2 (λ↑=λD+10)</button></div>
+        <div class="chips"><button class="chip" data-scn="1">Scenario 1 (λ↑=λD)</button><button class="chip" data-scn="2">Scenario 2 (λ↑=λD+10)</button></div>
         <label class="check"><input type="checkbox" id="trCurt"> Use real feed-in (Availability tab)</label>
         <button id="trRun" class="btn primary">Compute offers</button>
       </div>
@@ -286,8 +301,8 @@
     <div class="card"><div class="card-h"><h2>Charge (−) / discharge (+)</h2><span class="sub">MW at the grid connection</span></div><div class="chart sm"><canvas id="cBat"></canvas></div></div>
 
     <div class="card intro">
-      <h2>Lecture MDP: battery with a Markov price</h2>
-      <p>The exercise from the MDP lecture: prices switch between two levels as a Markov chain. Solved for the infinite-horizon discounted value
+      <h2>MDP: battery with a Markov price</h2>
+      <p>Prices switch between two levels as a Markov chain. Solved for the infinite-horizon discounted value
         <b>V*(s) = max<sub>a</sub>[R(s,a) + γ Σ P<sub>sa</sub>(s′)V*(s′)]</b> with both <b>value iteration</b> and <b>policy iteration</b>.</p>
       <div class="controls grid-controls">
         <label>Capacity (MWh)<input id="mE" type="number" value="200"></label>

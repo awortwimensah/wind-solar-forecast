@@ -105,7 +105,7 @@
     for (const [ds, s, e] of sets) {
       const url = `https://api.energidataservice.dk/dataset/${ds}?${qs({
         start: A.isoDate(A.addDays(s, -1)) + 'T00:00', end: A.isoDate(A.addDays(e, 2)) + 'T00:00',
-        filter: JSON.stringify({ PriceArea: [area] }), limit: 0 })}`;
+        filter: JSON.stringify({ PriceArea: [area] }), sort: 'TimeUTC asc', limit: 0 })}`;
       const j = await getJSON(url);
       const recs = j.records || [];
       if (!recs.length) continue;

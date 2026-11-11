@@ -15,8 +15,9 @@
     const key = `${cfg.area}|${A.isoDate(s)}|${A.isoDate(e)}`;
     let map = pcache.get(key);
     if (!map) {
-      try { map = await A.api.prices(cfg.area, s, e); pcache.set(key, map); }
-      catch (err) { A.toast(`Price download failed (${err.message}) — using flat price.`, 'warn', 8000); map = new Map(); }
+      try { map = await A.api.prices(cfg.area, s, e); pcache.set(key, map); M.lastError = null; }
+      catch (err) { console.error('price download', err); M.lastError = err.message || String(err);
+        A.toast(`Price download failed (${M.lastError}) — using flat price.`, 'warn', 10000); map = new Map(); }
     }
     const byHod = Array.from({ length: 24 }, () => []);
     for (const [h, p] of map) byHod[new Date(h).getUTCHours()].push(p);
@@ -28,7 +29,8 @@
     });
     const src = real === hours.length ? `${cfg.area} day-ahead (Energinet)`
       : real ? `${cfg.area}: ${real}/${hours.length} h published, rest = hourly profile of published days`
-        : `${cfg.area}: not yet published — ${map.size ? 'hourly profile of recent prices' : 'flat price'}`;
+        : M.lastError ? `${cfg.area}: download failed (${M.lastError}) — flat price`
+          : `${cfg.area}: not yet published — ${map.size ? 'hourly profile of recent prices' : 'flat price'}`;
     return { lam, src, real };
   };
 
@@ -73,7 +75,7 @@
       kpi('Cost of uncertainty', A.fmt(perfect - res.opt, 0), '€', 'vs perfect information');
     if (cfg.dUp === 0 || cfg.dDown === 0)
       A.status('trStatus', cfg.dUp === 0 && cfg.dDown === 0 ? 'Single-price case with λ↑ = λ↓ = λD: revenue does not depend on the offer.'
-        : 'One penalty is zero: the revenue curve is flat on one side (lecture scenario 1), so a range of offers is optimal.', '');
+        : 'One penalty is zero: the revenue curve is flat on one side (scenario 1), so a range of offers is optimal.', '');
     else A.status('trStatus', `Scenarios per hour: ${d.ensUsed.length ? 'ensemble members' : 'deterministic models only (run a future period for ensembles)'}.`, 'ok');
 
     // charts

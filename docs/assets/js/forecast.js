@@ -107,7 +107,7 @@
 
   F.render = () => {
     const d = A.data; if (!d) return;
-    $('emptyState').hidden = true;
+    $('emptyState').hidden = true; document.body.classList.remove('no-data');
     const labels = d.hours.map((h) => A.fmtTime(h));
     const wantLines = (key) => d.models.map((m, i) => ({ label: A.api.MODELS[m], data: d.det[m][key], borderColor: A.series(i + 2), borderWidth: 1.2, borderDash: [4, 3] }));
     const main = (key, color) => [
