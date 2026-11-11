@@ -142,3 +142,37 @@ td.best { font-weight: 700; }
 .toast { padding: 10px 14px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.15); max-width: 420px; }
 .toast.error { border-left: 4px solid var(--bad); } .toast.warn { border-left: 4px solid var(--warn); } .toast.info { border-left: 4px solid var(--accent); }
 .leaflet-container { background: var(--surface-2); font: inherit; }
+
+/* ---------- status (fixed palette, always with icon + label) ---------- */
+:root { --st-good: #0ca30c; --st-warning: #fab219; --st-serious: #ec835a; --st-critical: #d03b3b; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #1b1b1b; background: var(--surface-2); }
+.badge.lv-good { background: var(--st-good); color: #fff; } .badge.lv-warning { background: var(--st-warning); }
+.badge.lv-serious { background: var(--st-serious); } .badge.lv-critical { background: var(--st-critical); color: #fff; }
+.tabbadge:empty { display: none; }
+.tabbadge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; font-size: 11px; line-height: 18px; text-align: center; background: var(--surface-2); color: var(--text-primary); }
+.tabbadge.lv-warning { background: var(--st-warning); color: #1b1b1b; } .tabbadge.lv-serious { background: var(--st-serious); color: #1b1b1b; } .tabbadge.lv-critical { background: var(--st-critical); color: #fff; }
+.tlwrap { overflow-x: auto; }
+.tl { display: grid; gap: 1px; min-width: 700px; align-items: stretch; }
+.tl-h { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: visible; height: 16px; }
+.tl-name { font-size: 12px; color: var(--text-secondary); padding: 4px 6px 4px 0; white-space: nowrap; }
+.tl-c { background: var(--surface-2); min-height: 22px; border-radius: 2px; }
+.tl-c.lv-warning { background: var(--st-warning); } .tl-c.lv-serious { background: var(--st-serious); } .tl-c.lv-critical { background: var(--st-critical); }
+.alerts { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow: auto; }
+.alert { border: 1px solid var(--line); border-left: 5px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.alert.lv-warning { border-left-color: var(--st-warning); } .alert.lv-serious { border-left-color: var(--st-serious); } .alert.lv-critical { border-left-color: var(--st-critical); } .alert.lv-good { border-left-color: var(--st-good); }
+.alert-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } .alert-b { margin-top: 6px; color: var(--text-secondary); font-size: 13px; }
+textarea#wnReport { font-size: 12px; line-height: 1.5; }
+.sliders label { display: grid; grid-template-columns: 140px 40px 1fr; align-items: center; gap: 8px; color: var(--text-primary); font-size: 13px; }
+.sliders input[type=range] { padding: 0; border: 0; accent-color: var(--brand); }
+.row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; } @media (max-width: 1200px) { .row3 { grid-template-columns: 1fr; } }
+.row3 .card h2 { margin-bottom: 8px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 8px; }
+table.edit td { padding: 4px; } table.edit input, table.edit select { margin: 0; padding: 5px 6px; font-size: 12px; }
+
+.chart-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px;
+  color: var(--text-muted); font-size: 14px; border: 1px dashed var(--line); border-radius: 10px; background: var(--surface-1); }
+.chart-empty[hidden] { display: none; }
+.steps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.step { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--text-secondary); }
+.step.done { border-color: var(--st-good); color: var(--text-primary); } .step.done::before { content: '✓'; color: var(--st-good); font-weight: 700; }
+.step.todo::before { content: '○'; color: var(--text-muted); } .step.busy::before { content: '…'; color: var(--accent); font-weight: 700; }

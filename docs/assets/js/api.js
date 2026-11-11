@@ -9,8 +9,9 @@
     archive: 'https://archive-api.open-meteo.com/v1/archive',
     geocode: 'https://geocoding-api.open-meteo.com/v1/search',
   };
-  api.VARS = ['wind_speed_10m', 'wind_speed_100m', 'wind_direction_100m', 'temperature_2m', 'surface_pressure', 'shortwave_radiation', 'cloud_cover'];
-  api.ENS_VARS = ['wind_speed_10m', 'wind_speed_100m', 'temperature_2m', 'surface_pressure', 'shortwave_radiation'];
+  api.VARS = ['wind_speed_10m', 'wind_speed_100m', 'wind_direction_100m', 'wind_gusts_10m', 'temperature_2m', 'relative_humidity_2m', 'surface_pressure',
+    'shortwave_radiation', 'cloud_cover', 'precipitation', 'snowfall', 'snow_depth', 'visibility', 'cape', 'weather_code'];
+  api.ENS_VARS = ['wind_speed_10m', 'wind_speed_100m', 'wind_gusts_10m', 'temperature_2m', 'surface_pressure', 'shortwave_radiation'];
   api.MODELS = { ecmwf_ifs025: 'ECMWF IFS', gfs_seamless: 'NOAA GFS', icon_seamless: 'DWD ICON', meteofrance_seamless: 'Météo-France' };
   api.ENSEMBLES = { ecmwf_ifs025: 'ECMWF ENS', gfs025: 'GFS GEFS', icon_seamless: 'ICON EPS' };
 

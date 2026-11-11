@@ -209,6 +209,9 @@
     await E.run();
   };
 
+  E.measurements = () => pending;
+  E.setMeasurements = (m) => { pending = m; };
+
   E.init = () => {
     $('evFile').addEventListener('change', () => { pending = null; });
     $('evAsset').addEventListener('change', () => { pending = null; });

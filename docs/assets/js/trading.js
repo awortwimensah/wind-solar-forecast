@@ -42,7 +42,8 @@
     const { lam, src } = await M.prices(d.hours);
     $('priceSrc').textContent = `€/MWh · ${src}`;
     const tau = T.tauStar(cfg.dUp, cfg.dDown);
-    const scen = d.scen[asset];
+    let scen = d.scen[asset];
+    if (A.curtail.active()) { const map = await A.curtail.scenarioMapper(asset); scen = scen.map((s, i) => s.map((x) => map(i, x))); }
     const strategies = {
       opt: { name: `Optimal quantile τ* = ${A.fmt(tau, 2)}`, q: [] },
       p50: { name: 'Median forecast (P50)', q: [] },
@@ -79,7 +80,7 @@
     const labels = d.hours.map((h) => A.fmtTime(h));
     const color = asset === 'solar' ? A.series(1) : A.series(0);
     A.chart('cOffer', 'line', labels, [
-      ...A.band('Forecast', d.q[asset], color),
+      ...A.band('Forecast', { p10: scen.map((x) => A.quantile(x, 0.1)), p90: scen.map((x) => A.quantile(x, 0.9)) }, color),
       { label: strategies.opt.name, data: strategies.opt.q, borderColor: A.series(6), borderWidth: 2.6, stepped: 'before' },
       { label: 'P50', data: strategies.p50.q, borderColor: color, borderWidth: 1.4, borderDash: [5, 3], stepped: 'before' },
     ], { unit: 'MW', ytitle: 'MW' });

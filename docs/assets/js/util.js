@@ -48,6 +48,17 @@ window.App = window.App || {};
   A.localDay = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: A.tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms);
   A.localHour = (ms) => +new Intl.DateTimeFormat('en-GB', { timeZone: A.tz, hour: '2-digit', hourCycle: 'h23' }).format(ms);
 
+  // offset (ms) of the site time zone at instant ms, and site-local wall clock -> UTC
+  A.tzOffset = (ms, tz = A.tz) => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .formatToParts(ms).filter((x) => x.type !== 'literal').map((x) => [x.type, +x.value]));
+    return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000;
+  };
+  A.localToUTC = (str) => { const g = A.parseUTC(str.length === 16 ? str + ':00' : str); return g - A.tzOffset(g - A.tzOffset(g)); };
+  A.toLocalInput = (ms) => new Date(ms + A.tzOffset(ms)).toISOString().slice(0, 16);
+  A.clearSkyGHI = (ms, lat, lon) => { const s = A.physics.sunPos(ms - 30 * 60e3, lat, lon); const cz = Math.cos(s.zen * Math.PI / 180);
+    return cz > 0 ? 1098 * cz * Math.exp(-0.057 / cz) : 0; };   // Haurwitz clear-sky model
+
   /* ---------------- persistence (best effort) ---------------- */
   A.store = {
     get(k, d) { try { const v = localStorage.getItem('rf_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -115,7 +126,13 @@ window.App = window.App || {};
       },
     };
     if (extra.stacked) { opts.scales.x.stacked = true; opts.scales.y.stacked = true; }
-    A.charts[id] = new Chart($(id), { type, data: { labels, datasets }, options: opts });
+    const plugins = [];
+    if (extra.nowIndex != null && extra.nowIndex >= 0) plugins.push({ id: 'now', afterDatasetsDraw(c) {
+      const x = c.scales.x.getPixelForValue(extra.nowIndex), { top, bottom } = c.chartArea, g = c.ctx;
+      g.save(); g.strokeStyle = A.css('--text-secondary'); g.setLineDash([4, 4]); g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(x, top); g.lineTo(x, bottom); g.stroke(); g.setLineDash([]);
+      g.fillStyle = A.css('--text-secondary'); g.font = '600 11px Inter, sans-serif'; g.fillText(extra.nowLabel || 'Now', x + 4, top + 12); g.restore(); } });
+    A.charts[id] = new Chart($(id), { type, data: { labels, datasets }, options: opts, plugins });
     return A.charts[id];
   };
   // P10–P90 band + P50 line helper

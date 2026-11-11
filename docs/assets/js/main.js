@@ -38,13 +38,19 @@
   document.addEventListener('DOMContentLoaded', () => {
     if (!window.Chart) A.toast('Chart library could not load (offline?). Numbers still work; charts are hidden.', 'warn', 10000);
     initTheme(); initTabs();
-    A.site.init(); A.trading.init(); A.storage.init(); A.evaluate.init(); A.assess.init();
+    // start each module on its own, so one failing tab cannot stop the others
+    const failed = [];
+    for (const name of ['site', 'combine', 'warnings', 'curtail', 'trading', 'storage', 'evaluate', 'assess']) {
+      try { if (!A[name]) throw new Error(`assets/js/${name}.js not loaded`); A[name].init(); }
+      catch (e) { console.error(`[${name}]`, e); failed.push(`${name}: ${e.message}`); }
+    }
+    if (failed.length) A.toast('Some parts failed to start (old or missing file?) — ' + failed.join(' | ') + '. Re-upload docs/assets and press Ctrl+F5.', 'error', 15000);
     $('runBtn').addEventListener('click', (e) => A.busy(e.target, A.forecast.run));
     $('csvBtn').addEventListener('click', A.forecast.csv);
     // keep dependent tabs in sync after each forecast
     document.addEventListener('forecast:ready', () => {
       if (A.trading.last) A.trading.run().catch(() => {});
     });
-    A.storage.runMdp();   // lecture example renders instantly, no data needed
+    try { A.storage.runMdp(); } catch (e) { console.error(e); }   // lecture example renders instantly
   });
 })(window.App);

@@ -5,8 +5,11 @@
   const F = A.forecast = {};
 
   // Instantaneous/preceding-hour-mean series -> hourly delivery products [h, h+1)
-  function toProducts(time, conv) {
-    const out = { hours: [], ws: [], wind: [], solar: [] };
+  A.EXTRAS = ['shortwave_radiation', 'wind_gusts_10m', 'temperature_2m', 'relative_humidity_2m', 'cloud_cover', 'precipitation', 'snowfall', 'snow_depth', 'visibility', 'cape', 'weather_code'];
+  function toProducts(time, conv, wx) {
+    const out = { hours: [], ws: [], wind: [], solar: [], wx: {} };
+    const ex = wx ? A.EXTRAS.filter((k) => wx[k]) : [];
+    ex.forEach((k) => { out.wx[k] = []; });
     const avg = (a, b) => (a == null || b == null ? (a ?? b) : (a + b) / 2);
     for (let i = 0; i + 1 < time.length; i++) {
       if (time[i + 1] - time[i] !== A.HOUR) continue;
@@ -14,6 +17,7 @@
       out.ws.push(avg(conv.ws[i], conv.ws[i + 1]));
       out.wind.push(avg(conv.wind[i], conv.wind[i + 1]));
       out.solar.push(conv.solar[i + 1]);
+      ex.forEach((k) => out.wx[k].push(wx[k][i + 1]));   // end-of-hour value (accumulations cover the hour)
     }
     return out;
   }
@@ -33,7 +37,7 @@
     await Promise.all(models.map(async (m) => {
       try {
         const wx = await A.api.weather(m, site.lat, site.lon, reqStart, reqEnd);
-        det[m] = toProducts(wx.time, A.physics.convert(wx, site, W, S));
+        det[m] = toProducts(wx.time, A.physics.convert(wx, site, W, S), wx);
       } catch (e) { warn.push(`${A.api.MODELS[m]}: ${e.message}`); }
     }));
     const okModels = models.filter((m) => det[m]);
@@ -44,10 +48,14 @@
     const idx = new Map(hours.map((h, i) => [h, i]));
     const align = (p, key) => { const a = new Array(hours.length).fill(null); p.hours.forEach((h, i) => { if (idx.has(h)) a[idx.get(h)] = p[key][i]; }); return a; };
     const D = {};
-    for (const m of okModels) D[m] = { ws: align(det[m], 'ws'), wind: align(det[m], 'wind'), solar: align(det[m], 'solar') };
+    const alignWx = (p, k) => { const a = new Array(hours.length).fill(null); p.hours.forEach((h, i) => { if (idx.has(h)) a[idx.get(h)] = p.wx[k][i]; }); return a; };
+    for (const m of okModels) {
+      D[m] = { ws: align(det[m], 'ws'), wind: align(det[m], 'wind'), solar: align(det[m], 'solar'), wx: {} };
+      for (const k in det[m].wx) D[m].wx[k] = alignWx(det[m], k);
+    }
 
     // ensembles
-    const members = { wind: [], solar: [] }, ensUsed = [];
+    const members = { wind: [], solar: [], ws: [], gust: [] }, ensUsed = [];
     const ens = A.ensembles();
     if (ens.length && end >= A.todayUTC()) {
       A.status('runStatus', 'Downloading ensembles…');
@@ -55,8 +63,9 @@
         try {
           const list = await A.api.ensemble(m, site.lat, site.lon, reqStart, reqEnd);
           for (const mem of list) {
-            const p = toProducts(mem.time, A.physics.convert(mem, site, W, S));
-            members.wind.push(align(p, 'wind')); members.solar.push(align(p, 'solar'));
+            const p = toProducts(mem.time, A.physics.convert(mem, site, W, S), mem);
+            members.wind.push(align(p, 'wind')); members.solar.push(align(p, 'solar')); members.ws.push(align(p, 'ws'));
+            if (p.wx.wind_gusts_10m) members.gust.push(alignWx(p, 'wind_gusts_10m'));
           }
           if (list.length) ensUsed.push(`${A.api.ENSEMBLES[m]} (${list.length})`);
         } catch (e) { warn.push(`${A.api.ENSEMBLES[m]}: ${e.message}`); }

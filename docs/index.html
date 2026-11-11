@@ -149,32 +149,40 @@
     <div class="card intro">
       <h2>Combination forecast</h2>
       <p>Weather models are good in different situations. The weight of each model is learned from its past error <b>separately for each weather situation</b>
-        (wind: low wind / power-curve slope / high wind; solar: clear / broken / overcast) using inverse-MSE weighting, and the spread of past errors in that situation gives
+        (wind: low wind / power-curve slope / high wind; solar: clear / broken / overcast) using weights ∝ (1/MSE)<sup>p</sup>, where the sharpness p is chosen on held-out data, and the spread of past errors in that situation gives
         a <b>situation-dependent uncertainty band</b>. The latest measurement then corrects the first hours, with the error decaying as e<sup>−Δt/τ</sup>.</p>
       <div class="controls">
         <label>Asset<select id="cbAsset"><option value="wind">Wind farm</option><option value="solar">Solar plant</option></select></label>
         <label>Learn weights against<select id="cbRef"><option value="era5">ERA5 reanalysis (no data needed)</option><option value="meas">My measurements (Evaluate tab)</option></select></label>
-        <button id="cbTrain" class="btn primary">Learn weights</button>
-        <button id="cbApply" class="btn ghost">Re-apply</button>
+        <label class="check"><input type="checkbox" id="cbAuto" checked> Learn automatically after each forecast</label>
+        <button id="cbTrain" class="btn primary">Learn weights now</button>
       </div>
+      <div class="steps" id="cbSteps"></div>
       <div id="cbStatus" class="status"></div>
     </div>
-    <div class="card"><div class="card-h"><h2>Combination forecast</h2><span class="sub" id="cbRegimes">MW</span></div><div class="chart"><canvas id="cCombo"></canvas></div></div>
+    <div class="kpis" id="cbKpis"></div>
+    <div class="card"><div class="card-h"><h2>Combination forecast</h2><span class="sub" id="cbRegimes">MW</span></div>
+      <div class="chart"><canvas id="cCombo"></canvas><div class="chart-empty" id="cbEmpty">Press <b>Update forecast</b> in the sidebar — the combination is computed automatically.</div></div></div>
     <div class="row2">
-      <div class="card"><div class="card-h"><h2>Learned weights per weather situation</h2></div><div class="tablewrap"><table id="cbWeights"></table></div>
+      <div class="card"><div class="card-h"><h2>Model weights per weather situation</h2><span class="sub">share of the combination</span></div>
+        <div class="chart sm"><canvas id="cCbW"></canvas><div class="chart-empty" id="cbWEmpty">Weights appear after learning.</div></div>
+        <div class="tablewrap"><table id="cbWeights"></table></div>
         <p class="sub">With the ERA5 reference the weights show which model agrees best with the reanalysis at this site; with your measurements they reflect real plant skill.</p></div>
-      <div class="card"><div class="card-h"><h2>Test-period skill</h2><span class="sub">last 30 % of the training window</span></div><div class="tablewrap"><table id="cbSkill"></table></div></div>
+      <div class="card"><div class="card-h"><h2>Test-period skill</h2><span class="sub">last 30 % of the training window, not used for learning</span></div>
+        <div class="tablewrap"><table id="cbSkill"></table></div><p class="sub" id="cbSkillEmpty">Skill appears after learning.</p></div>
     </div>
     <div class="row2">
       <div class="card"><div class="card-h"><h2>Manual weights</h2><label class="check" style="margin-left:auto"><input type="checkbox" id="cbUseManual"> Use manual weights</label></div>
-        <div id="cbManual" class="sliders"></div></div>
+        <div id="cbManual" class="sliders"></div>
+        <div class="chips" style="margin-top:10px"><button class="chip" id="cbEqual">Equal weights</button><button class="chip" id="cbFromLearned">Copy learned weights</button></div></div>
       <div class="card"><div class="card-h"><h2>Short-term correction</h2><span class="sub">latest measured output</span></div>
         <div class="grid-controls controls">
-          <label>Measured power (MW)<input id="cbMeasVal" type="number" step="0.1" placeholder="leave empty = none"></label>
+          <label>Measured power (MW)<input id="cbMeasVal" type="number" step="0.1" placeholder="empty = no correction"></label>
           <label>At (site time)<input id="cbMeasTime" type="datetime-local"></label>
           <label>Decay time τ (h)<input id="cbTau" type="number" step="0.5" value="4"></label>
+          <button id="cbApply" class="btn primary">Apply correction</button>
         </div>
-        <p class="sub">If measurements are loaded and overlap the period, the most recent one is used automatically.</p></div>
+        <p class="sub">Time empty = the current hour. If measurements are loaded in the Evaluate tab and overlap the period, the most recent one is used automatically.</p></div>
     </div>
   </section>
 

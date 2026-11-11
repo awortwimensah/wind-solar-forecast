@@ -36,6 +36,68 @@
     return best;
   };
 
+  /* ---------- power curve, Weibull and AEP ---------- */
+  const gammaFn = (z) => {   // Lanczos approximation
+    const g = 7, c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+    if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gammaFn(1 - z));
+    z -= 1; let x = c[0]; for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
+    const t = z + g + 0.5; return Math.sqrt(2 * Math.PI) * t ** (z + 0.5) * Math.exp(-t) * x;
+  };
+  S.weibull = (ws) => {        // method of moments (Justus): k = (σ/μ)^−1.086, c = μ / Γ(1 + 1/k)
+    const v = ws.filter((x) => x != null), mu = A.mean(v), sd = Math.sqrt(A.mean(v.map((x) => (x - mu) ** 2)));
+    const k = (sd / mu) ** -1.086; return { k, c: mu / gammaFn(1 + 1 / k), mu };
+  };
+  S.wpdf = (v, k, c) => (v <= 0 ? 0 : (k / c) * (v / c) ** (k - 1) * Math.exp(-((v / c) ** k)));
+  S.aepWeibull = (W, k, c, rho) => {   // MWh/yr for the farm, net of farm losses
+    let e = 0; const dv = 0.1;
+    for (let v = dv / 2; v < 40; v += dv) e += A.physics.windPower(v, rho, W) * S.wpdf(v, k, c) * dv;
+    return e * 8766;
+  };
+  function powerCurveSection(pr, wx, W) {
+    const rhoSite = A.mean(wx.time.map((_, i) => A.physics.airDensity(wx.surface_pressure?.[i], wx.temperature_2m?.[i], W.hub)));
+    const vs = A.linspace(0, Math.min(30, W.vcut + 3), 61);
+    const perTurbine = (rho) => vs.map((v) => ({ x: v, y: A.physics.windPower(v, rho, W) * 1000 / W.n / (1 - W.loss / 100) }));
+    A.chart('cPc', 'scatter', undefined, [
+      { label: `${W.custom ? 'Manufacturer' : 'Generic'} curve at 1.225 kg/m³`, data: perTurbine(1.225), showLine: true, pointRadius: 0, borderColor: A.series(0) },
+      { label: `At site mean density ${A.fmt(rhoSite, 3)} kg/m³`, data: perTurbine(rhoSite), showLine: true, pointRadius: 0, borderColor: A.series(1), borderDash: [5, 3] },
+    ], { xtitle: 'Hub-height wind speed (m/s)', ytitle: 'kW per turbine', unit: 'kW', digits: 0, tooltip: { title: (c) => `${A.fmt(c[0].parsed.x, 1)} m/s` } });
+    A.charts.cPc.options.interaction = { mode: 'nearest', intersect: false, axis: 'x' }; A.charts.cPc.update();
+    const wb = S.weibull(pr.ws), bins = Array.from({ length: 30 }, (_, i) => i);
+    const valid = pr.ws.filter((v) => v != null), hist = bins.map((b) => 100 * valid.filter((v) => v >= b && v < b + 1).length / valid.length);
+    A.chart('cWdist', 'bar', bins.map((b) => `${b}–${b + 1}`), [
+      { label: 'ERA5 hours', data: hist, backgroundColor: A.alpha(A.series(0), 0.55), barPercentage: 1, categoryPercentage: 0.95 },
+      { label: `Weibull k = ${A.fmt(wb.k, 2)}, c = ${A.fmt(wb.c, 2)} m/s`, data: bins.map((b) => 100 * S.wpdf(b + 0.5, wb.k, wb.c)), type: 'line', borderColor: A.series(1), pointRadius: 0 },
+    ], { unit: '%', xtitle: 'm/s', xticks: 15 });
+    const gross = A.sum(pr.wind) / (1 - W.loss / 100), net = A.sum(pr.wind), weib = S.aepWeibull(W, wb.k, wb.c, rhoSite);
+    S.pc = { wb, rhoSite, gross, net, weib };
+    const inst = W.ratedKW * W.n / 1000;   // installed MW (before losses)
+    const row = (n, e) => [n, A.fmt(e, 0), A.fmt(e / inst, 0), A.fmt(100 * e / (inst * 8760), 1) + ' %'];
+    A.table($('aepTbl'), ['AEP estimate', 'MWh / year', 'Full-load hours', 'Capacity factor'], [
+      row('Gross (time series, no losses)', gross), row(`Net (time series, −${W.loss} % losses)`, net), row('Net (Weibull × power curve)', weib)]);
+  }
+  // Long-term P50/P90 from inter-annual variability of several ERA5 years + other uncertainties
+  S.longTerm = async () => {
+    const site = A.site, W = A.windCfg(), Sc = A.solarCfg(), y0 = +$('asYear').value, n = A.clamp(Math.round(A.num('aepYears')), 3, 10);
+    const other = A.num('aepUnc') / 100, years = Array.from({ length: n }, (_, i) => y0 - i);
+    const res = [];
+    for (const y of years) {
+      A.status('asStatus', `Downloading ERA5 ${y} (${res.length + 1}/${n})…`);
+      const wx = await A.api.archive(site.lat, site.lon, new Date(Date.UTC(y, 0, 1)), new Date(Date.UTC(y, 11, 31)));
+      const pr = A.forecast.toProducts(wx.time, A.physics.convert(wx, site, W, Sc));
+      res.push({ y, e: A.sum(pr.wind) * 8760 / pr.hours.length, ws: A.mean(pr.ws) });
+    }
+    const es = res.map((r) => r.e), p50 = A.mean(es), sdY = Math.sqrt(A.sum(es.map((e) => (e - p50) ** 2)) / (es.length - 1));
+    // σ of the long-term mean (n years) + future variability over the averaging period + other (model, losses, ...)
+    const r = sdY / p50, sLt = r / Math.sqrt(es.length);
+    const s10 = Math.sqrt(sLt ** 2 + (r / Math.sqrt(10)) ** 2 + other ** 2), s1 = Math.sqrt(sLt ** 2 + r ** 2 + other ** 2);
+    const p90 = p50 * (1 - 1.2816 * s10), p90_1y = p50 * (1 - 1.2816 * s1);
+    A.chart('cAep', 'bar', res.map((r) => String(r.y)).reverse(), [
+      { label: 'Net AEP (ERA5 year)', data: res.map((r) => r.e).reverse(), backgroundColor: A.series(0) },
+    ], { unit: 'MWh', digits: 0 });
+    $('aepLt').innerHTML = `<b>P50 ${A.fmt(p50, 0)} MWh/yr</b> · P90 (10-yr) ${A.fmt(p90, 0)} · P90 (1-yr) ${A.fmt(p90_1y, 0)} MWh/yr · inter-annual σ ${A.fmt(100 * sdY / p50, 1)} % · other uncertainty ${A.fmt(100 * other, 1)} %`;
+    A.status('asStatus', `Long-term estimate from ${n} ERA5 years. P90 = P50·(1 − 1.282·σ); the 1-year P90 adds inter-annual variability.`, 'ok');
+  };
+
   S.run = async () => {
     const site = A.site, W = A.windCfg(), Sc = A.solarCfg();
     const year = +$('asYear').value, k = A.clamp(Math.round(A.num('asK')), 2, 8);
@@ -61,6 +123,7 @@
     const elbow = Array.from({ length: 10 }, (_, i) => S.kmeans(X, i + 1, { restarts: 4 }).inertia);
 
     // KPIs
+    powerCurveSection(pr, wx, W);
     const eW = A.sum(pr.wind), eS = A.sum(pr.solar), H = pr.hours.length;
     const pairs = cfW.map((w, i) => [w, cfS[i]]).filter(([a, b]) => a != null && b != null);
     const mw = A.mean(pairs.map((p) => p[0])), ms = A.mean(pairs.map((p) => p[1]));
@@ -70,7 +133,7 @@
       kpi('Wind capacity factor', A.fmt(100 * eW / (W.capMW * H)), '%', `${A.fmt(eW / 1000, 1)} GWh/yr · ${A.fmt(eW / W.capMW, 0)} full-load h`) +
       kpi('Solar capacity factor', A.fmt(100 * eS / (Sc.capMW * H)), '%', `${A.fmt(eS / 1000, 1)} GWh/yr · ${A.fmt(eS / (Sc.kwp / 1000), 0)} kWh/kWp`) +
       kpi('Mean hub wind speed', A.fmt(A.mean(pr.ws), 2), 'm/s', `at ${W.hub} m (ERA5)`) +
-      kpi('Wind–solar correlation', A.fmt(corr, 2), '', corr < 0 ? 'complementary profiles' : 'co-varying profiles');
+      kpi('Wind–solar correlation', A.fmt(corr, 2), '', Math.abs(corr) < 0.1 ? 'largely independent' : corr < 0 ? 'complementary profiles' : 'co-varying profiles');
 
     // monthly CF
     const mon = Array.from({ length: 12 }, () => ({ w: [], s: [] }));
@@ -116,5 +179,6 @@
     const y = new Date().getUTCFullYear();
     $('asYear').innerHTML = Array.from({ length: 6 }, (_, i) => y - 1 - i).map((v) => `<option>${v}</option>`).join('');
     $('asRun').addEventListener('click', (e) => A.busy(e.target, S.run));
+    $('aepRun').addEventListener('click', (e) => A.busy(e.target, S.longTerm));
   };
 })(window.App);
