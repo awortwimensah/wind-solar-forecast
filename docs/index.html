@@ -247,7 +247,7 @@
         offer the <b>τ* = (λ<sub>D</sub>−λ↓)/(λ↑−λ↓)</b> quantile. Quantile forecasts (pinball loss) are therefore the right tool, not the MSE-optimal mean.</p>
       <div class="controls">
         <label>Asset<select id="trAsset"><option value="wind">Wind farm</option><option value="solar">Solar plant</option><option value="hybrid">Hybrid (wind + solar)</option></select></label>
-        <div class="chips"><button class="chip" data-scn="1">Lecture scenario 1 (λ↑=λD)</button><button class="chip" data-scn="2">Lecture scenario 2 (λ↑=λD+10)</button></div>
+        <div class="chips"><button class="chip" data-scn="1">scenario 1 (λ↑=λD)</button><button class="chip" data-scn="2">scenario 2 (λ↑=λD+10)</button></div>
         <label class="check"><input type="checkbox" id="trCurt"> Use real feed-in (Availability tab)</label>
         <button id="trRun" class="btn primary">Compute offers</button>
       </div>
@@ -388,5 +388,14 @@
 <script src="assets/js/evaluate.js?v=4"></script>
 <script src="assets/js/assess.js?v=4"></script>
 <script src="assets/js/main.js?v=4"></script>
+<script data-goatcounter="https://windsolarstudio.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>
+  // also count which tabs people open (Forecast, Trading, Storage, ...)
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('.tab');
+    if (t && window.goatcounter && window.goatcounter.count)
+      window.goatcounter.count({ path: 'tab-' + t.dataset.tab, title: t.textContent.trim(), event: true });
+  });
+</script>
 </body>
 </html>
